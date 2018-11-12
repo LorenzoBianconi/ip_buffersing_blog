@@ -3,30 +3,29 @@
 ### Introduction:
 _Open Virtual Network (OVN)_ is a subproject of [Open vSwitch (OVS)](http://www.openvswitch.org/), a performant
 programmable multi-platform virtual switch. OVN adds to the OVS existing
-capabilities native support for overlay networks introducing virtual network
-abstractions like virtual switches and routers. Moreover OVN provides native
+capabilities the support for overlay networks introducing virtual network
+abstractions such as virtual switches and routers. Moreover OVN provides native
 methods for setting up Access Control Lists (ACLs) and network services such as
 DHCP.
 
 ### OVN Architecture:
-An OVN deployment consists of several components:
-* The OVN/CMS Plugin (e.g Neutron) is the component of the CMS that interfaces with OVN.
-  The plugin’s main purpose is to translate the CMS’s notion of logical network configuration
-  into an intermediate representation composed by logical switches and routers understood by OVN.
-* OVN Northbound database is an instance of OVSDB and is used to store
-  network representation received from CMS plugin. The OVN Northbound Database
-  has only two clients: the OVN/CMS Plugin above it and ovn−northd daemon
+An OVN deployment consists of several components:  
+* The OVN/CMS Plugin (e.g Neutron) is the CMS interface component for OVN. The plugin’s main purpose
+  is to translate the CMS’s notion of logical network configuration into an intermediate representation
+  composed by logical switches and routers which can be interpreted by OVN.
+* The OVN Northbound database is an OVSDB instance responsible for storing network representation
+  received from the CMS plugin. The OVN Northbound Database has only two clients: the OVN/CMS Plugin
+  above it and ovn−northd daemon
 * ovn−northd daemon connects to the OVN Northbound Database and the OVN Southbound
   Database. It translates the logical network configuration in terms of conventional
   network concepts, taken from the OVN Northbound Database, into logical datapath
   flows in the OVN Southbound Database
-* The OVN Southbound database is also an OVSDB database. Its
-  schema is pretty different from the NB DB. Instead of familiar networking
-  concepts, the SB DB defines the network in terms of collections of
-  match-action rules called "logical flows", which while similar in concept to
-  OpenFlow flows use logical concepts, such as virtual machine instances, in
-  place of physical concepts like physical Ethernet ports. SB DB includes three
-  types of data:
+* The OVN Southbound database, an OVSDB database, is characterized by a quite different
+  schema with respect to the NB DB. In particular, instead of familiar networking concepts,
+  the SB DB defines the network in terms of match-action rule collections called
+  "logical flows". The “logical flows”, while conceptually similar to OpenFlow flows,
+  exploit logical concepts, such as virtual machine instances, instead of physical ones
+  like physical Ethernet ports. In particular, SB DB includes three data types:
   * Physical network data, such as the VM's IP address and tunnel encapsulation
     format
   * Logical network data, such as packet forwarding mode
@@ -41,14 +40,14 @@ An OVN deployment consists of several components:
 
 ### L2 address resolution problem:
 A typical OVN deployment is reported below where the overlay network
-is connected to an external network through a _localnet_ port (ext-localnet in this
+is connected to an external one through a _localnet_ port (ext-localnet in this
 case)
 
 <p align="center"> 
 <img src="https://github.com/LorenzoBianconi/ip_buffersing_blog/blob/master/img/ip_buff_diagram.svg"
 </p>
 
-Below is reported related OVN NBDB network configuration
+Below is reported related OVN NBDB network configuration:
 
 > switch 35b34afe-ee16-469b-9893-80b024510f33 (sw2)  
 >    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;port sw2-port4  
@@ -89,10 +88,10 @@ Below is reported related OVN NBDB network configuration
 
 Whenever a device belonging to the overlay network (e.g PC1) tries to reach an external
 device (e.g PC-EXT) it forwards the packet to the OVN logical router (LR0). If LR0
-has not already resolved the L2/L3 address correspondence for PC-EXT it
+has not already resolved the L2/L3 address correspondence for PC-EXT yet, it
 will send an ARP frame (or a Neighbor Discovery for IPv6 traffic) for PC-EXT.
-Current OVN implementation uses _arp action_ to perform L2 address resolution. In
-other word OVN will instruct OVS to perform a 'packet in' action whenever it
+The current OVN implementation employs  _arp action_ to perform L2 address resolution. In
+other words, OVN will instruct OVS to perform a 'packet in' action whenever it
 needs to forward an IP packet for an unknown L2 destination. The ARP action
 replaces the IPv4 packet being processed by an ARP frame that is forwarded on
 the external network to resolve PC-EXT mac address.
@@ -101,7 +100,7 @@ Below is reported the IPv4/IPv6 OVN SBDB rules corresponding to that processing:
 > table=10(lr_in_arp_request  ), priority=100  , match=(eth.dst == 00:00:00:00:00:00), action=(arp { eth.dst = ff:ff:ff:ff:ff:ff; arp.spa = reg1; arp.tpa = reg0; arp.op = 1; output; };)  
 > table=10(lr_in_arp_request  ), priority=100  , match=(eth.dst == 00:00:00:00:00:00), action=(nd_ns { nd.target = xxreg0; output; };)  
 
-The main side effect introduced by the processing is the loss of the first
+The main drawback introduced by the described processing is the loss of the first
 packet of the connection (as shown in the following ICMP traffic) introducing
 latency in TCP connections established with devices not belonging to the
 overlay network
@@ -143,8 +142,8 @@ ICMP echo request is received by PC-EXT
 > 10 packets transmitted, 10 received, 0% packet loss, time 9208ms  
 
 ### Future development:
-A possible future enhancement could be use the developed IP buffering infrastructure
-to queue packets waiting for a given events (e.g. the container
-for which the packet is destinated for come up) and then send them back to
-ovs-vswitchd as soon as the requested message has been received.
+A possible future enhancement to the described methodology could be use the developed
+IP buffering infrastructure to queue packets waiting for a given events
+(e.g. the container for which the packet is destinated for come up) and then send
+them back to ovs-vswitchd as soon as the requested message has been received.
 Stay tuned :)
